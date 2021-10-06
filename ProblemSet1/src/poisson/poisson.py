@@ -26,13 +26,11 @@ def main(lr, train_path, eval_path, save_path):
 
     # Creating the Scatter Plot
     plt.figure()
-    plt.scatter(y_eval,p_eval,alpha=0.5,c='blue',label='True vs Predicted Counts')
+    plt.scatter(y_eval, p_eval, alpha=0.5, c='blue', label='True vs Predicted Counts')
     plt.xlabel('Ground Truth')
     plt.ylabel('Predictions')
     plt.legend()
     plt.savefig('poisson_valid.png')
-    
-
     # *** END CODE HERE ***
 
 
@@ -69,8 +67,8 @@ class PoissonRegression:
             y: Training example labels. Shape (n_examples,).
         """
         # *** START CODE HERE ***
-        n, d = x.shape[0],x.shape[1]
-        if(self.theta == None):
+        n, d = x.shape[0], x.shape[1]
+        if self.theta == None:
             self.theta = np.zeros(d)
         
         for iter in range(0, self.max_iter):
@@ -83,24 +81,17 @@ class PoissonRegression:
             #         batch_gradient = batch_gradient + (y[j]-h_theta_x[j])*x[j][i] 
             #     new_theta[i] = self.theta[i] + self.step_size*batch_gradient
             
-            ## This code is faster as we use matrices for calucating the gradient
+            # This code is faster as we use matrices for calucating the gradient
             batch_gradient = np.sum((y-h_theta_x).reshape(-1,1)*x, axis=0)
             new_theta = self.theta + self.step_size*batch_gradient
+            if self.verbose and iter % 5 == 0:
+                print('[iter: {:02d}, theta: {}]'.format(iter, [round(t, 5) for t in self.theta]))
 
             # Checking the norm codition to break the loop
             norm = np.sum(np.abs(new_theta - self.theta))
-            
             self.theta = new_theta
-
-            if self.verbose and iter % 5 == 0:
-                print('[iter: {:02d}, theta: {}]'
-                      .format(iter, [round(t, 5) for t in self.theta]))
-
-            
-            if (norm<self.eps):
+            if norm < self.eps:
                 break
-            
-
         # *** END CODE HERE ***
 
     def predict(self, x):
@@ -113,7 +104,8 @@ class PoissonRegression:
             Floating-point prediction for each input, shape (n_examples,).
         """
         # *** START CODE HERE ***
-        y = np.exp(x.dot(self.theta))
+        y = x.dot(self.theta)
+        y = np.exp(y)
         return y
         # *** END CODE HERE ***
 
