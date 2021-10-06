@@ -21,12 +21,12 @@ def main(lr, train_path, eval_path, save_path):
 
     # Run on the validation set, and use np.savetxt to save outputs to save_path
     x_eval, y_eval = util.load_dataset(eval_path, add_intercept=True)
-    p_eval = clf.predict(x_eval)
-    np.savetxt(save_path, p_eval)
+    pred_eval = clf.predict(x_eval)
+    np.savetxt(save_path, pred_eval)
 
     # Creating the Scatter Plot
     plt.figure()
-    plt.scatter(y_eval, p_eval, alpha=0.5, c='blue', label='True vs Predicted Counts')
+    plt.scatter(y_eval, pred_eval, alpha=0.5, c='blue', label='True vs Predicted Counts')
     plt.xlabel('Ground Truth')
     plt.ylabel('Predictions')
     plt.legend()
@@ -74,7 +74,7 @@ class PoissonRegression:
         for iter in range(0, self.max_iter):
             h_theta_x = self.predict(x)
             new_theta = np.zeros(d)
-            # This code is using for loops across the examples data
+            # This code is using for loops across all the training examples
             # for i in range(0, d):
             #     batch_gradient = 0
             #     for j in range(0,n):
@@ -84,12 +84,13 @@ class PoissonRegression:
             # This code is faster as we use matrices for calucating the gradient
             batch_gradient = np.sum((y-h_theta_x).reshape(-1,1)*x, axis=0)
             new_theta = self.theta + self.step_size*batch_gradient
-            if self.verbose and iter % 5 == 0:
-                print('[iter: {:02d}, theta: {}]'.format(iter, [round(t, 5) for t in self.theta]))
 
             # Checking the norm codition to break the loop
             norm = np.sum(np.abs(new_theta - self.theta))
             self.theta = new_theta
+
+            if(self.verbose and iter % 5 == 0):
+                print("Iteration "+str(iter)+ ": Theta:",self.theta, "Change :", round(norm,6) )
             if norm < self.eps:
                 break
         # *** END CODE HERE ***
