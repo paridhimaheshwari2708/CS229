@@ -26,7 +26,7 @@ class LinearModel(object):
             y: Training example labels. Shape (n_examples,).
         """
         # *** START CODE HERE ***
-        self.theta = np.linalg.solve(np.matmul(X.transpose(),X) ,np.matmul(X.transpose(),y) )
+        self.theta = np.linalg.solve(np.matmul(X.transpose(), X), np.matmul(X.transpose(), y))
         # *** END CODE HERE ***
 
     def create_poly(self, k, X):
@@ -41,7 +41,7 @@ class LinearModel(object):
         # *** START CODE HERE ***
         new_poly_x = X[:,0].reshape(-1,1) ## Starting the single column for x0
         for i in range(1, k+1):
-            power_x_col = np.power(X[:,1],i).reshape(-1,1) ## For each new feature, taking the power to create a new column array
+            power_x_col = np.power(X[:,1], i).reshape(-1,1) ## For each new feature, taking the power to create a new column array
             new_poly_x = np.hstack((new_poly_x, power_x_col)) ## Appending the arrays for feature matrix
         return new_poly_x
         # *** END CODE HERE ***
@@ -57,7 +57,7 @@ class LinearModel(object):
         # *** START CODE HERE ***
         new_feature_x = X[:,0].reshape(-1,1) ## Starting the single column for x0
         for i in range(1, k+1):
-            power_x_col = np.power(X[:,1],i).reshape(-1,1) ## For each new feature, taking the power to create a new column array
+            power_x_col = np.power(X[:,1], i).reshape(-1,1) ## For each new feature, taking the power to create a new column array
             new_feature_x = np.hstack((new_feature_x, power_x_col)) ## Appending the arrays for feature matrix
         sin_x_col = np.sin(X[:,1]).reshape(-1,1)
         new_feature_x = np.hstack((new_feature_x, sin_x_col))

@@ -89,8 +89,8 @@ class PoissonRegression:
             norm = np.sum(np.abs(new_theta - self.theta))
             self.theta = new_theta
 
-            if(self.verbose and iter % 5 == 0):
-                print("Iteration "+str(iter)+ ": Theta:",self.theta, "Change :", round(norm,6) )
+            if self.verbose and iter % 5 == 0:
+                print("Iteration " + str(iter) + ": Theta:", self.theta, "Change :", round(norm,6))
             if norm < self.eps:
                 break
         # *** END CODE HERE ***
