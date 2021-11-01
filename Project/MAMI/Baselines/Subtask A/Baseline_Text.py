@@ -6,20 +6,24 @@ requires the same folder:
 '''
 
 #path
-csv_path_test = './test.csv'
-csv_path_train = './train.csv'
-
-import evaluation
-import pandas as pd
-import tensorflow_hub as hub
-import tensorflow as tf
-import numpy as np
-import keras
-import tensorflow.keras.layers as layers
-from tensorflow.keras.models import Model
 import os
+import sys
 import gc
 import shutil 
+import keras
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+import tensorflow_hub as hub
+import tensorflow.keras.layers as layers
+from tensorflow.keras.models import Model
+
+ROOT_PATH = '/Users/paridhi/Desktop/Stanford/Courses/CS229/Project'
+csv_path_test = os.path.join(ROOT_PATH, 'Data', 'test.csv')
+csv_path_train = os.path.join(ROOT_PATH, 'Data', 'training', 'train.csv')
+
+sys.path.append('../../Evaluation')
+import evaluation
 
 if not os.path.exists('./TextModel'):
     os.makedirs('./TextModel')
