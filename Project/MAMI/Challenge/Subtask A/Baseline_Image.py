@@ -6,25 +6,29 @@
 -folder 'TRAINING' with images
 '''
 
-#path
-csv_path_test = './test.csv'
-csv_path_train = './train.csv'
-image_path = './TRAINING'
-
-import evaluation
-import pandas as pd
-import tensorflow_hub as hub
-import tensorflow as tf
-import numpy as np
-import keras
-import tensorflow.keras.layers as layers
-from tensorflow.keras.models import Model
-from tensorflow.keras.preprocessing.image import load_img, img_to_array
-from tensorflow.keras.applications.vgg16 import VGG16
-from tensorflow.keras import regularizers
 import os
 import gc
+import sys
+import keras
 import shutil 
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+import tensorflow_hub as hub
+import tensorflow.keras.layers as layers
+from tensorflow.keras.models import Model
+from tensorflow.keras import regularizers
+from tensorflow.keras.applications.vgg16 import VGG16
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
+
+sys.path.append('../')
+import evaluation
+
+#path
+DATA_PATH = '/dfs/user/paridhi/CS229/Project/Data'
+csv_path_test = os.path.join(DATA_PATH, 'trial.csv')
+csv_path_train = os.path.join(DATA_PATH, 'training.csv')
+image_path = os.path.join(DATA_PATH, 'images')
 
 def loadImage(image_path):
     try:
@@ -98,7 +102,7 @@ history = image_model.fit(iX_train,
                     validation_split=0.1,
                     epochs= epochs,
                     batch_size=batch_size,
-                    #verbose=0,
+                    verbose=1
                     )
                     
 image_model.save('ImageModel/model_image.h5')
@@ -138,10 +142,6 @@ predictions_db = pd.DataFrame(data=test_df['file_name'])
 predictions_db['misogynist'] = pred
 
 #_______________________________EVALUATION_______________________________
-if not os.path.exists('./res'):
-    os.makedirs('./res')
+predictions_db.to_csv('./ImageModel/answer.txt', index=False, sep='\t', header=False)  
+evaluation.main(['', './ImageModel/', './ImageModel/'])
 
-predictions_db.to_csv('./res/answer.txt', index=False, sep='\t', header=False)  
-evaluation.main(['','./', './ImageModel'])
-#move res folder to ImageModel folder
-shutil.move('./res/', './ImageModel')

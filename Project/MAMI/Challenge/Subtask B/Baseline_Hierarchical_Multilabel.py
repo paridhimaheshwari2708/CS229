@@ -6,21 +6,25 @@ requires the same folder:
 -folder 'TRAINING' with images
 '''
 
-#path
-csv_path_test = './test.csv'
-csv_path_train = './train.csv'
-
-import evaluation
-import pandas as pd
-import tensorflow_hub as hub
-import tensorflow as tf
-import numpy as np
-import keras
-import tensorflow.keras.layers as layers
-from tensorflow.keras.models import Model
 import os
 import gc
-import shutil 
+import sys
+import keras
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+import tensorflow_hub as hub
+import tensorflow.keras.layers as layers
+from tensorflow.keras.models import Model
+
+sys.path.append('../')
+import evaluation
+
+#path
+DATA_PATH = '/dfs/user/paridhi/CS229/Project/Data'
+csv_path_test = os.path.join(DATA_PATH, 'trial.csv')
+csv_path_train = os.path.join(DATA_PATH, 'training.csv')
+image_path = os.path.join(DATA_PATH, 'images')
 
 if not os.path.exists('./HierarchicalMultilabelModel'):
     os.makedirs('./HierarchicalMultilabelModel')
@@ -213,10 +217,5 @@ for mis_file in list_mis:
     predictions_db.loc[predictions_db['file_name']== mis_file, mis_type] = mis_predictions_db.loc[mis_predictions_db['file_name']== mis_file, mis_type]
     
 #_______________________________EVALUATION_______________________________
-if not os.path.exists('./res'):
-    os.makedirs('./res')
-
-predictions_db.to_csv('./res/answer.txt', index=False, sep='\t', header=False)
-evaluation.main(['','./', './HierarchicalMultilabelModel/'])
-#move res folder to ConcatenatedModel folder
-shutil.move('./res/', './HierarchicalMultilabelModel/res/')
+predictions_db.to_csv('./HierarchicalMultilabelModel/answer.txt', index=False, sep='\t', header=False)  
+evaluation.main(['', './HierarchicalMultilabelModel/', './HierarchicalMultilabelModel/'])

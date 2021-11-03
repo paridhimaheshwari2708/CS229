@@ -5,11 +5,9 @@ requires the same folder:
 -folder 'ref' with truth.txt
 '''
 
-#path
 import os
-import sys
 import gc
-import shutil 
+import sys
 import keras
 import numpy as np
 import pandas as pd
@@ -18,12 +16,13 @@ import tensorflow_hub as hub
 import tensorflow.keras.layers as layers
 from tensorflow.keras.models import Model
 
-ROOT_PATH = '/Users/paridhi/Desktop/Stanford/Courses/CS229/Project'
-csv_path_test = os.path.join(ROOT_PATH, 'Data', 'test.csv')
-csv_path_train = os.path.join(ROOT_PATH, 'Data', 'training', 'train.csv')
-
-sys.path.append('../../Evaluation')
+sys.path.append('../')
 import evaluation
+
+#path
+DATA_PATH = '/dfs/user/paridhi/CS229/Project/Data'
+csv_path_test = os.path.join(DATA_PATH, 'trial.csv')
+csv_path_train = os.path.join(DATA_PATH, 'training.csv')
 
 if not os.path.exists('./TextModel'):
     os.makedirs('./TextModel')
@@ -97,7 +96,8 @@ history = model.fit(tX_train,
                     validation_split=0.1,
                     epochs= epochs,
                     batch_size=batch_size,
-                    verbose=0)
+                    verbose=1
+                    )
                     
 model.save('./TextModel/model_text.h5')
 tf.keras.utils.plot_model(model, "./TextModel/model_text.png", show_shapes=True)
@@ -155,10 +155,5 @@ predictions_db = pd.DataFrame(data=test_df['file_name'])
 predictions_db['misogynist'] = pred
 
 #_______________________________EVALUATION_______________________________
-if not os.path.exists('./res'):
-    os.makedirs('./res')
-    
-predictions_db.to_csv('./res/answer.txt', index=False, sep='\t', header=False)  
-evaluation.main(['','./', './TextModel/'])
-#move res folder to TextModel folder
-shutil.move('./res/', './TextModel/res/') 
+predictions_db.to_csv('./TextModel/answer.txt', index=False, sep='\t', header=False)  
+evaluation.main(['', './TextModel/', './TextModel/'])
