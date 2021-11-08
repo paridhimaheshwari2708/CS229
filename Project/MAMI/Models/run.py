@@ -1,6 +1,21 @@
-# tensorboard --logdir runs --path_prefix=$tensorboard_base_url
+'''
+CUDA_VISIBLE_DEVICES=0 python run.py --save TaskA_VQA --mode TaskA --model VQA
+CUDA_VISIBLE_DEVICES=1 python run.py --save TaskA_MUTAN --mode TaskA --model MUTAN
+CUDA_VISIBLE_DEVICES=3 python run.py --save TaskA_SAN --mode TaskA --model SAN
+CUDA_VISIBLE_DEVICES=3 python run.py --save TaskA_Text --mode TaskA --model Text
+CUDA_VISIBLE_DEVICES=3 python run.py --save TaskA_Image --mode TaskA --model Image
+CUDA_VISIBLE_DEVICES=3 python run.py --save TaskA_ImageText --mode TaskA --model ImageText
+
+CUDA_VISIBLE_DEVICES=0 python run.py --save TaskB_VQA --mode TaskB --model VQA
+CUDA_VISIBLE_DEVICES=1 python run.py --save TaskB_MUTAN --mode TaskB --model MUTAN
+CUDA_VISIBLE_DEVICES=2 python run.py --save TaskB_SAN --mode TaskB --model SAN
+CUDA_VISIBLE_DEVICES=3 python run.py --save TaskB_Text --mode TaskB --model Text
+CUDA_VISIBLE_DEVICES=3 python run.py --save TaskB_Image --mode TaskB --model Image
+CUDA_VISIBLE_DEVICES=0 python run.py --save TaskB_ImageText --mode TaskB --model ImageText
+'''
 
 import os
+import json
 import torch
 import random
 import argparse
@@ -15,6 +30,7 @@ from config import *
 from data import Memes
 from vqa import VQAModel
 from san import SANModel
+from unimodal import TextModel, ImageModel, ImageTextModel
 from metrics import Accuracy, Precision, Recall, F1Score
 
 torch.autograd.set_detect_anomaly(True)
@@ -25,7 +41,6 @@ METRICS = {
     "Recall": Recall(),
     "F1Score": F1Score(),
 }
-
 
 def set_seed(seed):
     """Utility function to set seed values for RNG for various modules"""
@@ -47,17 +62,23 @@ class Options:
             "--mode", action="store", type=str, choices=["TaskA", "TaskB"]
         )
         self.parser.add_argument(
-            "--model", action="store", type=str, choices=["VQA", "MUTAN", "SAN"]
+            "--image_mode", action="store", type=str, choices=["general", "clip"]
+        )
+        self.parser.add_argument(
+            "--text_mode", action="store", type=str, choices=["glove", "urban"]
+        )
+        self.parser.add_argument(
+            "--model", action="store", type=str, choices=["VQA", "MUTAN", "SAN", "Text", "Image", 'ImageText']
         )
         self.parser.add_argument("--lr", dest="lr", action="store", default=0.001)
         self.parser.add_argument(
-            "--epochs", dest="epochs", action="store", default=100, type=int
+            "--epochs", dest="epochs", action="store", default=20, type=int
         )
         self.parser.add_argument(
             "--batchSize", dest="batchSize", action="store", default=64, type=int
         )
         self.parser.add_argument(
-            "--numWorkers", dest="numWorkers", action="store", default=4, type=int
+            "--numWorkers", dest="numWorkers", action="store", default=16, type=int
         )
 
         self.parse()
@@ -74,9 +95,9 @@ class Options:
             ), "Load Path doesn't Exist"
         if self.opts.save:
             if not os.path.isdir(os.path.join("runs", self.opts.save)):
-                os.mkdir(os.path.join("runs", self.opts.save))
+                os.makedirs(os.path.join("runs", self.opts.save))
             if not os.path.isdir(os.path.join("logs", self.opts.save)):
-                os.mkdir(os.path.join("logs", self.opts.save))
+                os.makedirs(os.path.join("logs", self.opts.save))
 
     def __str__(self):
         return (
@@ -93,9 +114,10 @@ class Options:
 
 
 def buildLoader(args, subset):
+    shuffle = (subset != 'test')
     loader = DataLoader(
-        Memes(subset, args.mode),
-        shuffle=True,
+        Memes(subset, args.mode, args.image_mode),
+        shuffle=shuffle,
         num_workers=args.numWorkers,
         batch_size=args.batchSize,
     )
@@ -109,11 +131,17 @@ def buildModel(args, loadBest):
         num_classes = 5
 
     if args.model == 'VQA':
-        model = VQAModel(output_size=num_classes, use_mutan=False).cuda()
+        model = VQAModel(output_size=num_classes, use_mutan=False, image_mode=args.image_mode, text_mode=args.text_mode).cuda()
     elif args.model == 'MUTAN':
-        model = VQAModel(output_size=num_classes, use_mutan=True).cuda()
+        model = VQAModel(output_size=num_classes, use_mutan=True, image_mode=args.image_mode, text_mode=args.text_mode).cuda()
     elif args.model == 'SAN':
-        model = SANModel(output_size=num_classes).cuda()
+        model = SANModel(output_size=num_classes, text_mode=args.text_mode).cuda()
+    elif args.model == 'Text':
+        model = TextModel(output_size=num_classes, text_mode=args.text_mode).cuda()
+    elif args.model == 'Image':
+        model = ImageModel(output_size=num_classes, image_mode=args.image_mode).cuda()
+    elif args.model == 'ImageText':
+        model = ImageTextModel(output_size=num_classes, image_mode=args.image_mode, text_mode=args.text_mode).cuda()
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
@@ -125,17 +153,7 @@ def buildModel(args, loadBest):
         epoch, bestTrainLoss, bestValLoss = -1, float("inf"), float("inf")
     return epoch, bestTrainLoss, bestValLoss, optimizer, model
 
-
-class loadMetrics:
-    def __init__(self, args):
-        self.mse = nn.MSELoss()
-
-    def loss(self, original_image, reconstructed_image):
-        loss = self.mse(original_image, reconstructed_image)
-        return loss
-
-
-def run(epoch, mode, dataloader, model, optimizer):
+def run(args, epoch, mode, dataloader, model, optimizer):
     if mode == "train":
         model.train()
     elif mode == "val" or mode == "test":
@@ -144,12 +162,17 @@ def run(epoch, mode, dataloader, model, optimizer):
         assert False, "Wrong Mode:{} for Run".format(mode)
 
     losses, predictions, targets = [], [], []
-    criterion = nn.BCEWithLogitsLoss()
+    if args.mode == "TaskA":
+        criterion = nn.BCEWithLogitsLoss()
+    elif args.mode == "TaskB":
+        criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(CLASS_POS_WEIGHTS).cuda())
+    # criterion = nn.BCEWithLogitsLoss()
+    sigmoid = nn.Sigmoid()
     with trange(len(dataloader), desc="{}, Epoch {}: ".format(mode, epoch)) as t:
         for (image, text, labels) in dataloader:
             image, text, labels = image.cuda(), text.cuda(), labels.cuda()
             preds = model(image, text)
-            predictions.append(preds.detach().cpu().numpy())
+            predictions.append(sigmoid(preds).detach().cpu().numpy())
             targets.append(labels.detach().cpu().numpy())
             loss = criterion(preds, labels)
             if mode == "train":
@@ -165,6 +188,8 @@ def run(epoch, mode, dataloader, model, optimizer):
     epoch_loss = sum(losses) / len(losses)
     predictions = np.concatenate(predictions, axis=0)
     targets = np.concatenate(targets, axis=0)
+    save_path = os.path.join('logs', args.save, 'outputs.npz')
+    np.savez(save_path, predictions=predictions, targets=targets)
     results = {"Loss": epoch_loss}
     for metric, metric_fn in METRICS.items():
         results[metric] = metric_fn(predictions, targets)
@@ -181,14 +206,12 @@ def train(args):
 
     logger = SummaryWriter(logdir=os.path.join("runs", args.save))
     for epoch in range(startingEpoch + 1, args.epochs):
-        train_results = run(epoch, "train", trainLoader, model, optimizer)
-        print("Train Metrics:\n")
+        train_results = run(args, epoch, "train", trainLoader, model, optimizer)
         pprint(train_results)
         for metric, value in train_results.items():
             logger.add_scalar("train/{}".format(metric), value, epoch)
 
-        val_results = run(epoch, "val", valLoader, model, optimizer)
-        print("Val Metrics:\n")
+        val_results = run(args, epoch, "val", valLoader, model, optimizer)
         pprint(val_results)
         for metric, value in val_results.items():
             logger.add_scalar("val/{}".format(metric), value, epoch)
@@ -201,6 +224,11 @@ def train(args):
                 val_results["Loss"],
                 True,
             )
+            with open(os.path.join("logs", args.save, 'train_metrics.json'), 'w') as f:
+                json.dump(train_results, f)
+            with open(os.path.join("logs", args.save, 'val_metrics.json'), 'w') as f:
+                json.dump(val_results, f)
+
         model.saveCheckpoint(
             os.path.join("logs", args.save),
             epoch,
@@ -220,10 +248,10 @@ def test(args):
 
     testLoader = buildLoader(args, "test")
 
-    test_results = run(bestEpoch, "test", testLoader, model, optimizer)
-    print("Test Metrics:\n")
+    test_results = run(args, bestEpoch, "test", testLoader, model, optimizer)
     pprint(test_results)
-
+    with open(os.path.join("logs", args.save, 'test_metrics.json'), 'w') as f:
+        json.dump(test_results, f)
 
 if __name__ == "__main__":
 

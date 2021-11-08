@@ -1,6 +1,6 @@
 import os
-import sys
 import ast
+import clip
 import torch
 import pandas as pd
 from PIL import Image
@@ -10,10 +10,12 @@ from torch.utils.data import Dataset
 from config import DATA_PATH, IMAGE_DIR, IMAGE_DIMENSION, IMAGENET_MEAN, IMAGENET_STD
 
 class Memes(Dataset):
-	def __init__(self, subset, mode):
+	def __init__(self, subset, mode, image_mode):
 		super(Memes, self).__init__()
 
 		self.mode = mode
+		self.image_mode = image_mode
+
 		if self.mode == "TaskA":
 			self.label_columns = ['misogynous']
 		elif self.mode == 'TaskB':
@@ -25,17 +27,30 @@ class Memes(Dataset):
 
 		print('{} set:\t# (image, text) pairs {}'.format(subset, len(self.data)))
 
-		# transform = [T.Resize(IMAGE_DIMENSION), T.ToTensor(), T.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD)]
-		transform = [T.Resize(IMAGE_DIMENSION), T.ToTensor()]
-		self.transform = T.Compose(transform)
+		if self.image_mode == 'general':
+			self.load_image = self.load_image_general
+			# transform = [T.Resize(IMAGE_DIMENSION), T.ToTensor(), T.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD)]
+			transform = [T.Resize(IMAGE_DIMENSION), T.ToTensor()]
+			self.transform = T.Compose(transform)
+		elif self.image_mode == 'clip':
+			self.load_image = self.load_image_clip
+			_, self.preprocess = clip.load("ViT-B/32")
 
-	def __getitem__(self, idx):
-		curr = self.data.iloc[idx]
-		image_path = curr['file_name']
+	def load_image_general(self, image_path):
 		with open(os.path.join(IMAGE_DIR, image_path), 'rb') as f:
 			with Image.open(f) as image:
 				image = image.convert('RGB')
 				image = self.transform(image)
+		return image
+
+	def load_image_clip(self, image_path):
+		image = self.preprocess(Image.open(os.path.join(IMAGE_DIR, image_path)))
+		return image
+
+	def __getitem__(self, idx):
+		curr = self.data.iloc[idx]
+		image_path = curr['file_name']
+		image = self.load_image(image_path)
 		text_indices = curr['Text Indices']
 		text = torch.tensor(ast.literal_eval(text_indices), dtype=torch.long)
 		# BCEWithLogits Loss expects target in float

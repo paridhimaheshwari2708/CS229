@@ -2,9 +2,8 @@ import os
 import re
 import numpy as np
 import pandas as pd
-from nltk.corpus import stopwords
 
-DATA_PATH = "/home/ubuntu/CS229/Project/Data"
+DATA_PATH = "/dfs/user/paridhi/CS229/Project/Data"
 csv_path = os.path.join(DATA_PATH, 'training.csv')
 MAX_TEXT_LENGTH = 50
 
@@ -20,6 +19,7 @@ def normalize_text(text):
 
 if __name__ == '__main__':
 
+	# Loading input data
 	df = pd.read_csv(csv_path, delimiter='\t')
 
 	# Preprocessing input text and creating vocabulary

@@ -29,46 +29,6 @@ def word_embedding_layer(vocabulary, mode, trainable=True):
 		embedding_layer.weight.requires_grad = False
 	return embedding_layer
 
-class MutanFusion(nn.Module):
-	def __init__(self, input_dim, out_dim, num_layers):
-		super(MutanFusion, self).__init__()
-		self.input_dim = input_dim
-		self.out_dim = out_dim
-		self.num_layers = num_layers
-
-		hv = []
-		for i in range(self.num_layers):
-			do = nn.Dropout(p=0.5)
-			lin = nn.Linear(input_dim, out_dim)
-
-			hv.append(nn.Sequential(do, lin, nn.Tanh()))
-
-		self.image_transformation_layers = nn.ModuleList(hv)
-
-		hq = []
-		for i in range(self.num_layers):
-			do = nn.Dropout(p=0.5)
-			lin = nn.Linear(input_dim, out_dim)
-			hq.append(nn.Sequential(do, lin, nn.Tanh()))
-
-		self.text_transformation_layers = nn.ModuleList(hq)
-
-	def forward(self, text_emb, img_emb):
-		batch_size = img_emb.size()[0]
-		x_mm = []
-		for i in range(self.num_layers):
-			x_hv = img_emb
-			x_hv = self.image_transformation_layers[i](x_hv)
-
-			x_hq = text_emb
-			x_hq = self.text_transformation_layers[i](x_hq)
-			x_mm.append(torch.mul(x_hq, x_hv))
-
-		x_mm = torch.stack(x_mm, dim=1)
-		x_mm = x_mm.sum(1).view(batch_size, self.out_dim)
-		x_mm = torch.tanh(x_mm)
-		return x_mm
-
 class Normalize(nn.Module):
 	def __init__(self, p=2):
 		super(Normalize, self).__init__()
@@ -117,6 +77,46 @@ class ImageEmbedding(nn.Module):
 		image_embedding = self.fflayer(image)
 		return image_embedding
 
+class ImageModel(nn.Module):
+
+	def __init__(self, output_size, emb_size=1024, image_channel_type='I', extract_img_features=True, image_mode='general'):
+		super(ImageModel, self).__init__()
+
+		self.image_channel = ImageEmbedding(image_channel_type, output_size=emb_size, extract_features=extract_img_features, mode=image_mode)
+		self.mlp = nn.Sequential(
+			nn.Linear(emb_size, 512),
+			nn.Dropout(p=0.5),
+			nn.ReLU(),
+			nn.Linear(512, output_size))
+
+	def forward(self, images, texts):
+		image_embeddings = self.image_channel(images)
+		output = self.mlp(image_embeddings)
+		return output
+
+	def saveCheckpoint(self, savePath, epoch, optimizer, bestTrainLoss, bestValLoss, isBest):
+		ckpt = {}
+		ckpt['state'] = self.state_dict()
+		ckpt['epoch'] = epoch
+		ckpt['optimizer_state'] = optimizer.state_dict()
+		ckpt['bestTrainLoss'] = bestTrainLoss
+		ckpt['bestValLoss'] = bestValLoss
+		torch.save(ckpt, os.path.join(savePath, 'model.ckpt'))
+		if isBest:
+			torch.save(ckpt, os.path.join(savePath, 'bestModel.ckpt'))
+
+	def loadCheckpoint(self, loadPath, optimizer, loadBest=False):
+		if loadBest:
+			ckpt = torch.load(os.path.join(loadPath, 'bestModel.ckpt'))
+		else:
+			ckpt = torch.load(os.path.join(loadPath, 'model.ckpt'))
+		self.load_state_dict(ckpt['state'])
+		epoch = ckpt['epoch']
+		bestTrainLoss = ckpt['bestTrainLoss']
+		bestValLoss = ckpt['bestValLoss']
+		optimizer.load_state_dict(ckpt['optimizer_state'])
+		return epoch, bestTrainLoss, bestValLoss
+
 class TextEmbedding(nn.Module):
 	def __init__(self, input_size=300, hidden_size=512, output_size=1024, num_layers=2, batch_first=True):
 		super(TextEmbedding, self).__init__()
@@ -148,10 +148,64 @@ class TextEmbedding(nn.Module):
 			text_embedding = self.fflayer(text_embedding)
 		return text_embedding
 
-class VQAModel(nn.Module):
+class TextModel(nn.Module):
+
+	def __init__(self, output_size, emb_size=1024, text_channel_type='lstm', text_mode='glove'):
+		super(TextModel, self).__init__()
+
+		self.word_emb_size = EMBEDDING_SIZE
+		self.vocabulary = np.load(VOCABULARY_PATH)
+
+		# NOTE the padding_idx below.
+		self.word_embeddings = word_embedding_layer(self.vocabulary, mode=text_mode)
+		if text_channel_type.lower() == 'lstm':
+			self.text_channel = TextEmbedding(input_size=self.word_emb_size, output_size=emb_size, num_layers=1)
+		elif text_channel_type.lower() == 'deeplstm':
+			self.text_channel = TextEmbedding(input_size=self.word_emb_size, output_size=emb_size, num_layers=2)
+		else:
+			msg = 'text channel type not specified. please choose one of -  lstm or deeplstm'
+			print(msg)
+			raise Exception(msg)
+
+		self.mlp = nn.Sequential(
+			nn.Linear(emb_size, 512),
+			nn.Dropout(p=0.5),
+			nn.ReLU(),
+			nn.Linear(512, output_size))
+
+	def forward(self, images, texts):
+		embeds = self.word_embeddings(texts)
+		text_embeddings = self.text_channel(embeds)
+		output = self.mlp(text_embeddings)
+		return output
+
+	def saveCheckpoint(self, savePath, epoch, optimizer, bestTrainLoss, bestValLoss, isBest):
+		ckpt = {}
+		ckpt['state'] = self.state_dict()
+		ckpt['epoch'] = epoch
+		ckpt['optimizer_state'] = optimizer.state_dict()
+		ckpt['bestTrainLoss'] = bestTrainLoss
+		ckpt['bestValLoss'] = bestValLoss
+		torch.save(ckpt, os.path.join(savePath, 'model.ckpt'))
+		if isBest:
+			torch.save(ckpt, os.path.join(savePath, 'bestModel.ckpt'))
+
+	def loadCheckpoint(self, loadPath, optimizer, loadBest=False):
+		if loadBest:
+			ckpt = torch.load(os.path.join(loadPath, 'bestModel.ckpt'))
+		else:
+			ckpt = torch.load(os.path.join(loadPath, 'model.ckpt'))
+		self.load_state_dict(ckpt['state'])
+		epoch = ckpt['epoch']
+		bestTrainLoss = ckpt['bestTrainLoss']
+		bestValLoss = ckpt['bestValLoss']
+		optimizer.load_state_dict(ckpt['optimizer_state'])
+		return epoch, bestTrainLoss, bestValLoss
+
+class ImageTextModel(nn.Module):
 
 	def __init__(self, output_size, emb_size=1024, image_channel_type='I', text_channel_type='lstm', use_mutan=True, extract_img_features=True, image_mode='general', text_mode='glove'):
-		super(VQAModel, self).__init__()
+		super(ImageTextModel, self).__init__()
 
 		self.word_emb_size = EMBEDDING_SIZE
 		self.image_channel = ImageEmbedding(image_channel_type, output_size=emb_size, extract_features=extract_img_features, mode=image_mode)
@@ -168,24 +222,17 @@ class VQAModel(nn.Module):
 			print(msg)
 			raise Exception(msg)
 
-		if use_mutan:
-			self.mutan = MutanFusion(emb_size, emb_size, 5)
-			self.mlp = nn.Sequential(nn.Linear(emb_size, output_size))
-		else:
-			self.mlp = nn.Sequential(
-				nn.Linear(emb_size, 128),
-				nn.Dropout(p=0.5),
-				nn.ReLU(),
-				nn.Linear(128, output_size))
+		self.mlp = nn.Sequential(
+			nn.Linear(2*emb_size, 512),
+			nn.Dropout(p=0.5),
+			nn.ReLU(),
+			nn.Linear(512, output_size))
 
 	def forward(self, images, texts):
 		image_embeddings = self.image_channel(images)
 		embeds = self.word_embeddings(texts)
 		text_embeddings = self.text_channel(embeds)
-		if hasattr(self, 'mutan'):
-			combined = self.mutan(text_embeddings, image_embeddings)
-		else:
-			combined = image_embeddings * text_embeddings
+		combined = torch.cat((image_embeddings, text_embeddings), dim=1)
 		output = self.mlp(combined)
 		return output
 

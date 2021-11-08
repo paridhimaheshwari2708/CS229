@@ -7,6 +7,7 @@ from sklearn.metrics import f1_score, precision_score, recall_score
 class Metric:
     def __init__(self):
         self.function = None
+        self.average = None
 
     def __call__(
         self,
@@ -17,6 +18,10 @@ class Metric:
             predictions = predictions.cpu().numpy()
         if isinstance(targets, torch.Tensor):
             targets = targets.cpu().numpy()
+        if len(predictions.shape) == 1 or predictions.shape[1] == 1:
+            self.average = 'macro'
+        else:
+            self.average = 'weighted'
         return self.function(predictions, targets)
 
 
@@ -45,7 +50,7 @@ class Precision(Metric):
         targets: Union[np.ndarray, torch.Tensor],
     ) -> float:
         return precision_score(
-            targets, (predictions > 0.5).astype(float), average="macro"
+            targets, (predictions > 0.5).astype(float), average=self.average
         )
 
 
@@ -59,7 +64,7 @@ class Recall(Metric):
         predictions: Union[np.ndarray, torch.Tensor],
         targets: Union[np.ndarray, torch.Tensor],
     ) -> float:
-        return recall_score(targets, (predictions > 0.5).astype(float), average="macro")
+        return recall_score(targets, (predictions > 0.5).astype(float), average=self.average)
 
 
 class F1Score(Metric):
@@ -72,10 +77,11 @@ class F1Score(Metric):
         predictions: Union[np.ndarray, torch.Tensor],
         targets: Union[np.ndarray, torch.Tensor],
     ) -> float:
-        return f1_score(targets, (predictions > 0.5).astype(float), average="macro")
+        return f1_score(targets, (predictions > 0.5).astype(float), average=self.average)
 
 
 if __name__ == "__main__":
+
     predictions = torch.tensor([[0.1, 0.9], [0.8, 0.2]])
     targets = torch.tensor([[0, 1], [1, 0]])
 
