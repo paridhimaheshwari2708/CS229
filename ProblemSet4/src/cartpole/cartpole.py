@@ -102,7 +102,7 @@ def initialize_mdp_data(num_states):
     transition_counts = np.zeros((num_states, num_states, 2))
     transition_probs = np.ones((num_states, num_states, 2)) / num_states
     #Index zero is count of rewards being -1 , index 1 is count of total num state is reached
-    reward_counts = np.zeros((num_states, 2)) 
+    reward_counts = np.zeros((num_states, 2))
     reward = np.zeros(num_states)
     value = np.random.rand(num_states) * 0.1
 
@@ -129,6 +129,16 @@ def choose_action(state, mdp_data):
     """
 
     # *** START CODE HERE ***
+    V = mdp_data['value']
+    T = mdp_data['transition_probs'][state, :, :] # (S,A)
+    expected_rewards = (V[:, None] * T).sum(axis=0)
+
+    if expected_rewards[0] > expected_rewards[1]:
+        return 0
+    elif expected_rewards[1] > expected_rewards[0]:
+        return 1
+    else:
+        return round(np.random.rand())
 
     # *** END CODE HERE ***
 
@@ -154,7 +164,10 @@ def update_mdp_transition_counts_reward_counts(mdp_data, state, action, new_stat
     """
 
     # *** START CODE HERE ***
-
+    mdp_data['transition_counts'][state, new_state, action] += 1
+    if reward == -1:
+        mdp_data['reward_counts'][new_state, 0] += 1
+    mdp_data['reward_counts'][new_state, 1] += 1
     # *** END CODE HERE ***
 
     # This function does not return anything
@@ -178,6 +191,26 @@ def update_mdp_transition_probs_reward(mdp_data):
     """
 
     # *** START CODE HERE ***
+    S, _, A = mdp_data['transition_probs'].shape
+
+    # Vectorized code
+    T_counts = mdp_data['transition_counts'].sum(axis=1, keepdims=True)
+    T_counts_mask = np.repeat((T_counts > 0), S, axis=1)
+    mdp_data['transition_probs'][T_counts_mask] = mdp_data['transition_counts'][T_counts_mask] / np.repeat(T_counts, S, axis=1)[T_counts_mask]
+
+    R_counts = mdp_data['reward_counts'][:, 1]
+    R_counts_mask = R_counts > 0
+    mdp_data['reward'][R_counts_mask] = -1.0 * mdp_data['reward_counts'][:,0][R_counts_mask] / R_counts[R_counts_mask]
+
+    # Non vectorized code
+    # for s in range(S):
+    #     for a in range(A):
+    #         total_counts = mdp_data['transition_counts'][s, :, a].sum()
+    #         if total_counts != 0:
+    #             mdp_data['transition_probs'][s, :, a] = mdp_data['transition_counts'][s, :, a] / total_counts
+    #     counts = mdp_data['reward_counts'][s, 1]
+    #     if counts != 0:
+    #         mdp_data['reward'][s] = -1.0 * mdp_data['reward_counts'][s, 0] / counts
 
     # *** END CODE HERE ***
 
@@ -206,12 +239,28 @@ def update_mdp_value(mdp_data, tolerance, gamma):
     """
 
     # *** START CODE HERE ***
-  
+    count = 0
+    S = mdp_data['value'].shape[0]
+    while True:
+        count = count + 1
+        new_values = np.zeros(S)
+        for s in range(S):
+            left_action_value = mdp_data['transition_probs'][s, :, 0].dot(mdp_data['value'])
+            right_action_value = mdp_data['transition_probs'][s, :, 1].dot(mdp_data['value'])
+            new_values[s] = mdp_data['reward'][s] + gamma * max(left_action_value, right_action_value)
+
+        delta = np.max(np.abs(new_values - mdp_data['value']))
+
+        mdp_data['value'] = new_values
+
+        if delta < tolerance:
+            return count == 1    
     # *** END CODE HERE ***
 
 def main(plot=True):
     # Seed the randomness of the simulation so this outputs the same thing each time
-    np.random.seed(0)
+    seed = 111
+    np.random.seed(seed)
 
     # Simulation parameters
     pause_time = 0.0001
@@ -286,7 +335,6 @@ def main(plot=True):
         # Recompute MDP model whenever pole falls
         # Compute the value function V for the new model
         if new_state == NUM_STATES - 1:
-
             update_mdp_transition_probs_reward(mdp_data)
 
             converged_in_one_iteration = update_mdp_value(mdp_data, TOLERANCE, GAMMA)
@@ -330,7 +378,7 @@ def main(plot=True):
         plt.plot(x, weights[window:len(log_tstf)], 'r--')
         plt.xlabel('Num failures')
         plt.ylabel('Log of num steps to failure')
-        plt.savefig('./control.pdf')
+        plt.savefig('./control{}.pdf'.format(seed))
 
     return np.array(time_steps_to_failure)
     
