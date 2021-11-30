@@ -1,4 +1,5 @@
 import os
+import clip
 import torch
 import numpy as np
 import torch.nn as nn
@@ -109,7 +110,7 @@ class ImageEmbedding(nn.Module):
 		self.extract_features = extract_features
 
 	def forward(self, image):
-		if self.extract_features
+		if self.extract_features:
 			if self.mode == 'general':
 				image = self.extractor(image)
 			elif self.mode == 'clip':

@@ -9,10 +9,10 @@ requires the same folder:
 import os
 import gc
 import sys
-import keras
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from tensorflow import keras 
 import tensorflow_hub as hub
 import tensorflow.keras.layers as layers
 from tensorflow.keras.models import Model
@@ -60,7 +60,7 @@ with tf.compat.v1.Session() as session:
       text_embedding = session.run(embed(list(x['Text Transcription'])))
       text_embeddings = text_embeddings + np.array(text_embedding).tolist()
 train_df['USE'] = text_embeddings
-   
+
 #clear memory
 del dfs
 del text_embedding

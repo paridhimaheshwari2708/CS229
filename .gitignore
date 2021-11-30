@@ -11,6 +11,8 @@
 
 Project/MAMI/Models/logs
 Project/MAMI/Models/runs
+Project/MAMI/HierarchicalModels/logs
+Project/MAMI/HierarchicalModels/runs
 
 Project/Data
 Project/ProjectProposal.pdf

@@ -1,17 +1,16 @@
 '''
-CUDA_VISIBLE_DEVICES=0 python run.py --save TaskA_VQA --mode TaskA --model VQA
-CUDA_VISIBLE_DEVICES=1 python run.py --save TaskA_MUTAN --mode TaskA --model MUTAN
-CUDA_VISIBLE_DEVICES=3 python run.py --save TaskA_SAN --mode TaskA --model SAN
-CUDA_VISIBLE_DEVICES=3 python run.py --save TaskA_Text --mode TaskA --model Text
-CUDA_VISIBLE_DEVICES=3 python run.py --save TaskA_Image --mode TaskA --model Image
-CUDA_VISIBLE_DEVICES=3 python run.py --save TaskA_ImageText --mode TaskA --model ImageText
+CUDA_VISIBLE_DEVICES=0 python run.py --save VQA --model VQA --image_mode general --text_mode glove
+CUDA_VISIBLE_DEVICES=0 python run.py --save MUTAN --model MUTAN --image_mode general --text_mode glove
+CUDA_VISIBLE_DEVICES=0 python run.py --save Text --model Text --image_mode general --text_mode glove
+CUDA_VISIBLE_DEVICES=0 python run.py --save Image --model Image --image_mode general --text_mode glove
+CUDA_VISIBLE_DEVICES=0 python run.py --save ImageText --model ImageText --image_mode general --text_mode glove
 
-CUDA_VISIBLE_DEVICES=0 python run.py --save TaskB_VQA --mode TaskB --model VQA
-CUDA_VISIBLE_DEVICES=1 python run.py --save TaskB_MUTAN --mode TaskB --model MUTAN
-CUDA_VISIBLE_DEVICES=2 python run.py --save TaskB_SAN --mode TaskB --model SAN
-CUDA_VISIBLE_DEVICES=3 python run.py --save TaskB_Text --mode TaskB --model Text
-CUDA_VISIBLE_DEVICES=3 python run.py --save TaskB_Image --mode TaskB --model Image
-CUDA_VISIBLE_DEVICES=0 python run.py --save TaskB_ImageText --mode TaskB --model ImageText
+CUDA_VISIBLE_DEVICES=0 python run.py --save VQA_cwk --model VQA --image_mode clip --text_mode urban
+CUDA_VISIBLE_DEVICES=0 python run.py --save MUTAN_cwk --model MUTAN --image_mode clip --text_mode urban
+CUDA_VISIBLE_DEVICES=0 python run.py --save Text_cwk --model Text --image_mode clip --text_mode urban
+CUDA_VISIBLE_DEVICES=0 python run.py --save Image_cwk --model Image --image_mode clip --text_mode urban
+CUDA_VISIBLE_DEVICES=0 python run.py --save ImageText_cwk --model ImageText --image_mode clip --text_mode urban
+
 '''
 
 import os
@@ -58,7 +57,6 @@ class Options:
         self.parser = argparse.ArgumentParser(description="Training Autoencoder")
         self.parser.add_argument("--save", dest="save", action="store", required=True)
         self.parser.add_argument("--load", dest="load", action="store")
-        self.parser.add_argument("--mode", action="store", type=str, choices=["TaskA", "TaskB"], required=True)
         self.parser.add_argument("--image_mode", action="store", type=str, choices=["general", "clip"], required=True)
         self.parser.add_argument("--text_mode", action="store", type=str, choices=["glove", "urban"], required=True)
         self.parser.add_argument("--model", action="store", type=str, choices=["VQA", "MUTAN", "SAN", "Text", "Image", 'ImageText'], required=True)
@@ -90,7 +88,7 @@ class Options:
 def buildLoader(args, subset):
     shuffle = (subset != 'test')
     loader = DataLoader(
-        Memes(subset, args.mode, args.image_mode),
+        Memes(subset, args.image_mode),
         shuffle=shuffle,
         num_workers=args.numWorkers,
         batch_size=args.batchSize,
@@ -99,23 +97,18 @@ def buildLoader(args, subset):
 
 
 def buildModel(args, loadBest):
-    if args.mode == "TaskA":
-        num_classes = 1
-    elif args.mode == "TaskB":
-        num_classes = 5
-
     if args.model == 'VQA':
-        model = VQAModel(output_size=num_classes, use_mutan=False, image_mode=args.image_mode, text_mode=args.text_mode).cuda()
+        model = VQAModel(output_size=4, use_mutan=False, image_mode=args.image_mode, text_mode=args.text_mode).cuda()
     elif args.model == 'MUTAN':
-        model = VQAModel(output_size=num_classes, use_mutan=True, image_mode=args.image_mode, text_mode=args.text_mode).cuda()
+        model = VQAModel(output_size=4, use_mutan=True, image_mode=args.image_mode, text_mode=args.text_mode).cuda()
     elif args.model == 'SAN':
-        model = SANModel(output_size=num_classes, text_mode=args.text_mode).cuda()
+        model = SANModel(output_size=4, text_mode=args.text_mode).cuda()
     elif args.model == 'Text':
-        model = TextModel(output_size=num_classes, text_mode=args.text_mode).cuda()
+        model = TextModel(output_size=4, text_mode=args.text_mode).cuda()
     elif args.model == 'Image':
-        model = ImageModel(output_size=num_classes, image_mode=args.image_mode).cuda()
+        model = ImageModel(output_size=4, image_mode=args.image_mode).cuda()
     elif args.model == 'ImageText':
-        model = ImageTextModel(output_size=num_classes, image_mode=args.image_mode, text_mode=args.text_mode).cuda()
+        model = ImageTextModel(output_size=4, image_mode=args.image_mode, text_mode=args.text_mode).cuda()
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
@@ -134,22 +127,30 @@ def run(args, epoch, mode, dataloader, model, optimizer):
         assert False, "Wrong Mode:{} for Run".format(mode)
 
     losses, predictions, targets = [], [], []
-    if args.mode == "TaskA":
-        criterion = nn.BCEWithLogitsLoss()
-    elif args.mode == "TaskB":
-        criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(CLASS_POS_WEIGHTS).cuda())
+    criterion1 = nn.BCEWithLogitsLoss()
+    criterion2 = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(CLASS_POS_WEIGHTS).cuda())
     sigmoid = nn.Sigmoid()
     with trange(len(dataloader), desc="{}, Epoch {}: ".format(mode, epoch)) as t:
         for (image, text, labels) in dataloader:
             image, text, labels = image.cuda(), text.cuda(), labels.cuda()
-            preds = model(image, text)
-            loss = criterion(preds, labels)
+            preds1, preds2 = model(image, text)
+            loss1 = criterion1(preds1, labels[:,0].unsqueeze(1))
+            ####
+            loss2 = criterion2(preds2, labels[:, 1:])
+            #### truly hierarchical
+            # select_idx = (labels[:,0] == 1)
+            # loss2 = criterion2(preds2[select_idx], labels[select_idx, 1:])
+            ####
+            loss = loss1 + ALPHA * loss2
             if mode == "train":
                 # Backprop
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
             # Keep track of things
+            non_select_idx = (preds1 < 0.5).squeeze()
+            preds2[non_select_idx, :] = -float("Inf")
+            preds = torch.cat((preds1, preds2), dim=1)
             predictions.append(sigmoid(preds).detach().cpu().numpy())
             targets.append(labels.detach().cpu().numpy())
             losses.append(loss.item())
@@ -163,7 +164,8 @@ def run(args, epoch, mode, dataloader, model, optimizer):
     np.savez(save_path, predictions=predictions, targets=targets)
     results = {"Loss": epoch_loss}
     for metric, metric_fn in METRICS.items():
-        results[metric] = metric_fn(predictions, targets)
+        results[metric+'_a'] = metric_fn(predictions[:,0], targets[:,0])
+        results[metric+'_b'] = metric_fn(predictions[:,1:], targets[:,1:])
     return results
 
 

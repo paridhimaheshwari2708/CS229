@@ -84,7 +84,12 @@ class ImageModel(nn.Module):
 		super(ImageModel, self).__init__()
 
 		self.image_channel = ImageEmbedding(image_channel_type, output_size=emb_size, extract_features=extract_img_features, mode=image_mode)
-		self.mlp = nn.Sequential(
+		self.mlp1 = nn.Sequential(
+			nn.Linear(emb_size, 512),
+			nn.Dropout(p=0.5),
+			nn.ReLU(),
+			nn.Linear(512, 1))
+		self.mlp2 = nn.Sequential(
 			nn.Linear(emb_size, 512),
 			nn.Dropout(p=0.5),
 			nn.ReLU(),
@@ -92,8 +97,9 @@ class ImageModel(nn.Module):
 
 	def forward(self, images, texts):
 		image_embeddings = self.image_channel(images)
-		output = self.mlp(image_embeddings)
-		return output
+		output1 = self.mlp1(image_embeddings)
+		output2 = self.mlp2(image_embeddings)
+		return output1, output2
 
 	def saveCheckpoint(self, savePath, epoch, optimizer, bestTrainLoss, bestValLoss, isBest):
 		ckpt = {}
@@ -168,7 +174,12 @@ class TextModel(nn.Module):
 			print(msg)
 			raise Exception(msg)
 
-		self.mlp = nn.Sequential(
+		self.mlp1 = nn.Sequential(
+			nn.Linear(emb_size, 512),
+			nn.Dropout(p=0.5),
+			nn.ReLU(),
+			nn.Linear(512, 1))
+		self.mlp2 = nn.Sequential(
 			nn.Linear(emb_size, 512),
 			nn.Dropout(p=0.5),
 			nn.ReLU(),
@@ -177,8 +188,9 @@ class TextModel(nn.Module):
 	def forward(self, images, texts):
 		embeds = self.word_embeddings(texts)
 		text_embeddings = self.text_channel(embeds)
-		output = self.mlp(text_embeddings)
-		return output
+		output1 = self.mlp1(text_embeddings)
+		output2 = self.mlp2(text_embeddings)
+		return output1, output2
 
 	def saveCheckpoint(self, savePath, epoch, optimizer, bestTrainLoss, bestValLoss, isBest):
 		ckpt = {}
@@ -223,7 +235,12 @@ class ImageTextModel(nn.Module):
 			print(msg)
 			raise Exception(msg)
 
-		self.mlp = nn.Sequential(
+		self.mlp1 = nn.Sequential(
+			nn.Linear(2*emb_size, 512),
+			nn.Dropout(p=0.5),
+			nn.ReLU(),
+			nn.Linear(512, 1))
+		self.mlp2 = nn.Sequential(
 			nn.Linear(2*emb_size, 512),
 			nn.Dropout(p=0.5),
 			nn.ReLU(),
@@ -234,8 +251,9 @@ class ImageTextModel(nn.Module):
 		embeds = self.word_embeddings(texts)
 		text_embeddings = self.text_channel(embeds)
 		combined = torch.cat((image_embeddings, text_embeddings), dim=1)
-		output = self.mlp(combined)
-		return output
+		output1 = self.mlp1(combined)
+		output2 = self.mlp2(combined)
+		return output1, output2
 
 	def saveCheckpoint(self, savePath, epoch, optimizer, bestTrainLoss, bestValLoss, isBest):
 		ckpt = {}
