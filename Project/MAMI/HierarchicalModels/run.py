@@ -60,7 +60,7 @@ class Options:
         self.parser.add_argument("--text_mode", action="store", type=str, choices=["glove", "urban"], required=True)
         self.parser.add_argument("--model", action="store", type=str, choices=["VQA", "MUTAN", "SAN", "Text", "Image", "ImageText"], required=True)
         self.parser.add_argument("--hierarchical", action="store", type=str, choices=["all", "true"], required=True)
-        self.parser.add_argument("--lr", dest="lr", action="store", default=0.001)
+        self.parser.add_argument("--lr", dest="lr", action="store", default=0.001, type=float)
         self.parser.add_argument("--epochs", dest="epochs", action="store", default=20, type=int)
         self.parser.add_argument("--batchSize", dest="batchSize", action="store", default=64, type=int)
         self.parser.add_argument("--numWorkers", dest="numWorkers", action="store", default=16, type=int)
@@ -143,17 +143,19 @@ def run(args, epoch, mode, dataloader, model, optimizer):
         for (image, text, labels) in dataloader:
             image, text, labels = image.cuda(), text.cuda(), labels.cuda()
             preds1, preds2 = model(image, text)
-            loss1 = criterion1(preds1, labels[:,0].unsqueeze(1))
+
             if args.hierarchical == "all":
-                loss2 = criterion2(preds2, labels)
+                loss = criterion2(preds2, labels)
                 preds = preds2
             elif args.hierarchical == "true":
+                loss1 = criterion1(preds1, labels[:,0].unsqueeze(1))
                 select_idx = (labels[:,0] == 1)
                 loss2 = criterion2(preds2[select_idx], labels[select_idx, 1:])
+                loss = loss1 + ALPHA * loss2
                 non_select_idx = (preds1 < 0).squeeze()
                 preds2[non_select_idx, :] = -float("Inf")
                 preds = torch.cat((preds1, preds2), dim=1)
-            loss = loss1 + ALPHA * loss2
+
             if mode == "train":
                 # Backprop
                 optimizer.zero_grad()
