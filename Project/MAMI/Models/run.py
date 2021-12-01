@@ -61,7 +61,7 @@ class Options:
         self.parser.add_argument("--mode", action="store", type=str, choices=["TaskA", "TaskB"], required=True)
         self.parser.add_argument("--image_mode", action="store", type=str, choices=["general", "clip"], required=True)
         self.parser.add_argument("--text_mode", action="store", type=str, choices=["glove", "urban"], required=True)
-        self.parser.add_argument("--model", action="store", type=str, choices=["VQA", "MUTAN", "SAN", "Text", "Image", 'ImageText'], required=True)
+        self.parser.add_argument("--model", action="store", type=str, choices=["VQA", "MUTAN", "SAN", "Text", "Image", "ImageText"], required=True)
         self.parser.add_argument("--lr", dest="lr", action="store", default=0.001)
         self.parser.add_argument("--epochs", dest="epochs", action="store", default=20, type=int)
         self.parser.add_argument("--batchSize", dest="batchSize", action="store", default=64, type=int)
@@ -88,7 +88,7 @@ class Options:
 
 
 def buildLoader(args, subset):
-    shuffle = (subset != 'test')
+    shuffle = (subset != "test")
     loader = DataLoader(
         Memes(subset, args.mode, args.image_mode),
         shuffle=shuffle,
@@ -104,17 +104,17 @@ def buildModel(args, loadBest):
     elif args.mode == "TaskB":
         num_classes = 5
 
-    if args.model == 'VQA':
+    if args.model == "VQA":
         model = VQAModel(output_size=num_classes, use_mutan=False, image_mode=args.image_mode, text_mode=args.text_mode).cuda()
-    elif args.model == 'MUTAN':
+    elif args.model == "MUTAN":
         model = VQAModel(output_size=num_classes, use_mutan=True, image_mode=args.image_mode, text_mode=args.text_mode).cuda()
-    elif args.model == 'SAN':
+    elif args.model == "SAN":
         model = SANModel(output_size=num_classes, text_mode=args.text_mode).cuda()
-    elif args.model == 'Text':
+    elif args.model == "Text":
         model = TextModel(output_size=num_classes, text_mode=args.text_mode).cuda()
-    elif args.model == 'Image':
+    elif args.model == "Image":
         model = ImageModel(output_size=num_classes, image_mode=args.image_mode).cuda()
-    elif args.model == 'ImageText':
+    elif args.model == "ImageText":
         model = ImageTextModel(output_size=num_classes, image_mode=args.image_mode, text_mode=args.text_mode).cuda()
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -159,7 +159,7 @@ def run(args, epoch, mode, dataloader, model, optimizer):
     epoch_loss = sum(losses) / len(losses)
     predictions = np.concatenate(predictions, axis=0)
     targets = np.concatenate(targets, axis=0)
-    save_path = os.path.join('logs', args.save, 'outputs.npz')
+    save_path = os.path.join("logs", args.save, "outputs.npz")
     np.savez(save_path, predictions=predictions, targets=targets)
     results = {"Loss": epoch_loss}
     for metric, metric_fn in METRICS.items():
@@ -189,9 +189,9 @@ def train(args):
         isBestLoss = False
         if val_results["Loss"] < bestValLoss:
             bestTrainLoss, bestValLoss, isBestLoss = train_results["Loss"], val_results["Loss"], True
-            with open(os.path.join("logs", args.save, 'train_metrics.json'), 'w') as f:
+            with open(os.path.join("logs", args.save, "train_metrics.json"), "w") as f:
                 json.dump(train_results, f)
-            with open(os.path.join("logs", args.save, 'val_metrics.json'), 'w') as f:
+            with open(os.path.join("logs", args.save, "val_metrics.json"), "w") as f:
                 json.dump(val_results, f)
 
         model.saveCheckpoint(
@@ -213,7 +213,7 @@ def test(args):
 
     test_results = run(args, bestEpoch, "test", testLoader, model, optimizer)
     pprint(test_results)
-    with open(os.path.join("logs", args.save, 'test_metrics.json'), 'w') as f:
+    with open(os.path.join("logs", args.save, "test_metrics.json"), "w") as f:
         json.dump(test_results, f)
 
 if __name__ == "__main__":
