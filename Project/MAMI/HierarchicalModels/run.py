@@ -1,15 +1,11 @@
 '''
-CUDA_VISIBLE_DEVICES=0 python run.py --save VQA --model VQA --image_mode general --text_mode glove --hierarchical true
-CUDA_VISIBLE_DEVICES=0 python run.py --save MUTAN --model MUTAN --image_mode general --text_mode glove --hierarchical true
-CUDA_VISIBLE_DEVICES=0 python run.py --save Text --model Text --image_mode general --text_mode glove --hierarchical true
-CUDA_VISIBLE_DEVICES=0 python run.py --save Image --model Image --image_mode general --text_mode glove --hierarchical true
-CUDA_VISIBLE_DEVICES=0 python run.py --save ImageText --model ImageText --image_mode general --text_mode glove --hierarchical true
+CUDA_VISIBLE_DEVICES=0 python run.py --save ImageText_all --model ImageText --image_mode general --text_mode glove --hierarchical all
+CUDA_VISIBLE_DEVICES=0 python run.py --save VQA_all --model VQA --image_mode general --text_mode glove --hierarchical all
+CUDA_VISIBLE_DEVICES=0 python run.py --save MUTAN_all --model MUTAN --image_mode general --text_mode glove --hierarchical all
 
-CUDA_VISIBLE_DEVICES=0 python run.py --save VQA_cwk --model VQA --image_mode clip --text_mode urban --hierarchical true
-CUDA_VISIBLE_DEVICES=0 python run.py --save MUTAN_cwk --model MUTAN --image_mode clip --text_mode urban --hierarchical true
-CUDA_VISIBLE_DEVICES=0 python run.py --save Text_cwk --model Text --image_mode clip --text_mode urban --hierarchical true
-CUDA_VISIBLE_DEVICES=0 python run.py --save Image_cwk --model Image --image_mode clip --text_mode urban --hierarchical true
-CUDA_VISIBLE_DEVICES=0 python run.py --save ImageText_cwk --model ImageText --image_mode clip --text_mode urban --hierarchical true
+CUDA_VISIBLE_DEVICES=0 python run.py --save ImageText_cwk_all --model ImageText --image_mode clip --text_mode urban --hierarchical all
+CUDA_VISIBLE_DEVICES=0 python run.py --save VQA_cwk_all --model VQA --image_mode clip --text_mode urban --hierarchical all
+CUDA_VISIBLE_DEVICES=0 python run.py --save MUTAN_cwk_all --model MUTAN --image_mode clip --text_mode urban --hierarchical all
 '''
 
 import os
@@ -144,23 +140,24 @@ def run(args, epoch, mode, dataloader, model, optimizer):
             image, text, labels = image.cuda(), text.cuda(), labels.cuda()
             preds1, preds2 = model(image, text)
 
+            loss1 = criterion1(preds1, labels[:,0].unsqueeze(1))
             if args.hierarchical == "all":
-                loss = criterion2(preds2, labels)
+                loss2 = criterion2(preds2, labels)
                 preds = preds2
             elif args.hierarchical == "true":
-                loss1 = criterion1(preds1, labels[:,0].unsqueeze(1))
                 select_idx = (labels[:,0] == 1)
                 loss2 = criterion2(preds2[select_idx], labels[select_idx, 1:])
-                loss = loss1 + ALPHA * loss2
                 non_select_idx = (preds1 < 0).squeeze()
                 preds2[non_select_idx, :] = -float("Inf")
                 preds = torch.cat((preds1, preds2), dim=1)
+            loss = loss1 + ALPHA * loss2
 
             if mode == "train":
                 # Backprop
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
+
             # Keep track of things
             predictions.append(sigmoid(preds).detach().cpu().numpy())
             targets.append(labels.detach().cpu().numpy())
