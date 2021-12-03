@@ -127,7 +127,7 @@ def run(args, epoch, mode, dataloader, model, optimizer):
     else:
         assert False, "Wrong Mode:{} for Run".format(mode)
 
-    losses, predictions, targets = [], [], []
+    losses, predictions_a, predictions_b, targets = [], [], [], []
     criterion1 = nn.BCEWithLogitsLoss()
     if args.hierarchical == "all":
         criterion2 = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(CLASS_POS_WEIGHTS).cuda())
@@ -138,18 +138,17 @@ def run(args, epoch, mode, dataloader, model, optimizer):
     with trange(len(dataloader), desc="{}, Epoch {}: ".format(mode, epoch)) as t:
         for (image, text, labels) in dataloader:
             image, text, labels = image.cuda(), text.cuda(), labels.cuda()
-            preds1, preds2 = model(image, text)
+            preds_a, preds_b = model(image, text)
 
-            loss1 = criterion1(preds1, labels[:,0].unsqueeze(1))
+            loss1 = criterion1(preds_a, labels[:,0].unsqueeze(1))
             if args.hierarchical == "all":
-                loss2 = criterion2(preds2, labels)
-                preds = preds2
+                loss2 = criterion2(preds_b, labels)
             elif args.hierarchical == "true":
                 select_idx = (labels[:,0] == 1)
-                loss2 = criterion2(preds2[select_idx], labels[select_idx, 1:])
-                non_select_idx = (preds1 < 0).squeeze()
-                preds2[non_select_idx, :] = -float("Inf")
-                preds = torch.cat((preds1, preds2), dim=1)
+                loss2 = criterion2(preds_b[select_idx], labels[select_idx, 1:])
+                non_select_idx = (preds_a < 0).squeeze()
+                preds_b[non_select_idx, :] = -float("Inf")
+                preds_b = torch.cat((preds_a, preds_b), dim=1)
             loss = loss1 + ALPHA * loss2
 
             if mode == "train":
@@ -159,21 +158,23 @@ def run(args, epoch, mode, dataloader, model, optimizer):
                 optimizer.step()
 
             # Keep track of things
-            predictions.append(sigmoid(preds).detach().cpu().numpy())
+            predictions_a.append(sigmoid(preds_a).detach().cpu().numpy())
+            predictions_b.append(sigmoid(preds_b).detach().cpu().numpy())
             targets.append(labels.detach().cpu().numpy())
             losses.append(loss.item())
             t.set_postfix(loss=losses[-1])
             t.update()
     # Gather the results for the epoch
     epoch_loss = sum(losses) / len(losses)
-    predictions = np.concatenate(predictions, axis=0)
+    predictions_a = np.concatenate(predictions_a, axis=0)
+    predictions_b = np.concatenate(predictions_b, axis=0)
     targets = np.concatenate(targets, axis=0)
     save_path = os.path.join("logs", args.save, "outputs.npz")
-    np.savez(save_path, predictions=predictions, targets=targets)
+    np.savez(save_path, predictions_a=predictions_a, predictions_b=predictions_b, targets=targets)
     results = {"Loss": epoch_loss}
     for metric, metric_fn in METRICS.items():
-        results[metric+"_a"] = metric_fn(predictions[:,0], targets[:,0])
-        results[metric+"_b"] = metric_fn(predictions[:,1:], targets[:,1:])
+        results[metric+"_a"] = metric_fn(predictions_a, targets[:,0][:,np.newaxis])
+        results[metric+"_b"] = metric_fn(predictions_b, targets)
     return results
 
 
@@ -232,6 +233,6 @@ if __name__ == "__main__":
     args = Options()
     print(args)
 
-    train(args.opts)
+    # train(args.opts)
     args.opts.load = args.opts.save
     test(args.opts)
