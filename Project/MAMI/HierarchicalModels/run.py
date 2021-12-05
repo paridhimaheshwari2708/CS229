@@ -233,6 +233,6 @@ if __name__ == "__main__":
     args = Options()
     print(args)
 
-    # train(args.opts)
+    train(args.opts)
     args.opts.load = args.opts.save
     test(args.opts)

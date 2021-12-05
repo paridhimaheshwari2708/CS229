@@ -78,28 +78,10 @@ class ImageEmbedding(nn.Module):
 		image_embedding = self.fflayer(image)
 		return image_embedding
 
-class ImageModel(nn.Module):
+class Base(nn.Module):
 
-	def __init__(self, output_size, emb_size=1024, image_channel_type='I', extract_img_features=True, image_mode='general'):
-		super(ImageModel, self).__init__()
-
-		self.image_channel = ImageEmbedding(image_channel_type, output_size=emb_size, extract_features=extract_img_features, mode=image_mode)
-		self.mlp1 = nn.Sequential(
-			nn.Linear(emb_size, 512),
-			nn.Dropout(p=0.5),
-			nn.ReLU(),
-			nn.Linear(512, 1))
-		self.mlp2 = nn.Sequential(
-			nn.Linear(emb_size, 512),
-			nn.Dropout(p=0.5),
-			nn.ReLU(),
-			nn.Linear(512, output_size))
-
-	def forward(self, images, texts):
-		image_embeddings = self.image_channel(images)
-		output1 = self.mlp1(image_embeddings)
-		output2 = self.mlp2(image_embeddings)
-		return output1, output2
+	def __init__(self):
+		super(Base, self).__init__()
 
 	def saveCheckpoint(self, savePath, epoch, optimizer, bestTrainLoss, bestValLoss, isBest):
 		ckpt = {}
@@ -123,6 +105,29 @@ class ImageModel(nn.Module):
 		bestValLoss = ckpt['bestValLoss']
 		optimizer.load_state_dict(ckpt['optimizer_state'])
 		return epoch, bestTrainLoss, bestValLoss
+
+class ImageModel(Base):
+
+	def __init__(self, output_size, emb_size=1024, image_channel_type='I', extract_img_features=True, image_mode='general'):
+		super(ImageModel, self).__init__()
+
+		self.image_channel = ImageEmbedding(image_channel_type, output_size=emb_size, extract_features=extract_img_features, mode=image_mode)
+		self.mlp1 = nn.Sequential(
+			nn.Linear(emb_size, 512),
+			nn.Dropout(p=0.5),
+			nn.ReLU(),
+			nn.Linear(512, 1))
+		self.mlp2 = nn.Sequential(
+			nn.Linear(emb_size, 512),
+			nn.Dropout(p=0.5),
+			nn.ReLU(),
+			nn.Linear(512, output_size))
+
+	def forward(self, images, texts=None):
+		image_embeddings = self.image_channel(images)
+		output1 = self.mlp1(image_embeddings)
+		output2 = self.mlp2(image_embeddings)
+		return output1, output2
 
 class TextEmbedding(nn.Module):
 	def __init__(self, input_size=300, hidden_size=512, output_size=1024, num_layers=2, batch_first=True):
@@ -155,7 +160,7 @@ class TextEmbedding(nn.Module):
 			text_embedding = self.fflayer(text_embedding)
 		return text_embedding
 
-class TextModel(nn.Module):
+class TextModel(Base):
 
 	def __init__(self, output_size, emb_size=1024, text_channel_type='lstm', text_mode='glove'):
 		super(TextModel, self).__init__()
@@ -192,30 +197,7 @@ class TextModel(nn.Module):
 		output2 = self.mlp2(text_embeddings)
 		return output1, output2
 
-	def saveCheckpoint(self, savePath, epoch, optimizer, bestTrainLoss, bestValLoss, isBest):
-		ckpt = {}
-		ckpt['state'] = self.state_dict()
-		ckpt['epoch'] = epoch
-		ckpt['optimizer_state'] = optimizer.state_dict()
-		ckpt['bestTrainLoss'] = bestTrainLoss
-		ckpt['bestValLoss'] = bestValLoss
-		torch.save(ckpt, os.path.join(savePath, 'model.ckpt'))
-		if isBest:
-			torch.save(ckpt, os.path.join(savePath, 'bestModel.ckpt'))
-
-	def loadCheckpoint(self, loadPath, optimizer, loadBest=False):
-		if loadBest:
-			ckpt = torch.load(os.path.join(loadPath, 'bestModel.ckpt'))
-		else:
-			ckpt = torch.load(os.path.join(loadPath, 'model.ckpt'))
-		self.load_state_dict(ckpt['state'])
-		epoch = ckpt['epoch']
-		bestTrainLoss = ckpt['bestTrainLoss']
-		bestValLoss = ckpt['bestValLoss']
-		optimizer.load_state_dict(ckpt['optimizer_state'])
-		return epoch, bestTrainLoss, bestValLoss
-
-class ImageTextModel(nn.Module):
+class ImageTextModel(Base):
 
 	def __init__(self, output_size, emb_size=1024, image_channel_type='I', text_channel_type='lstm', use_mutan=True, extract_img_features=True, image_mode='general', text_mode='glove'):
 		super(ImageTextModel, self).__init__()
@@ -254,26 +236,3 @@ class ImageTextModel(nn.Module):
 		output1 = self.mlp1(combined)
 		output2 = self.mlp2(combined)
 		return output1, output2
-
-	def saveCheckpoint(self, savePath, epoch, optimizer, bestTrainLoss, bestValLoss, isBest):
-		ckpt = {}
-		ckpt['state'] = self.state_dict()
-		ckpt['epoch'] = epoch
-		ckpt['optimizer_state'] = optimizer.state_dict()
-		ckpt['bestTrainLoss'] = bestTrainLoss
-		ckpt['bestValLoss'] = bestValLoss
-		torch.save(ckpt, os.path.join(savePath, 'model.ckpt'))
-		if isBest:
-			torch.save(ckpt, os.path.join(savePath, 'bestModel.ckpt'))
-
-	def loadCheckpoint(self, loadPath, optimizer, loadBest=False):
-		if loadBest:
-			ckpt = torch.load(os.path.join(loadPath, 'bestModel.ckpt'))
-		else:
-			ckpt = torch.load(os.path.join(loadPath, 'model.ckpt'))
-		self.load_state_dict(ckpt['state'])
-		epoch = ckpt['epoch']
-		bestTrainLoss = ckpt['bestTrainLoss']
-		bestValLoss = ckpt['bestValLoss']
-		optimizer.load_state_dict(ckpt['optimizer_state'])
-		return epoch, bestTrainLoss, bestValLoss
