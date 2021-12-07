@@ -22,7 +22,7 @@ Commands to train the models:
 python main.py --dataset mami_dataset --image_mode clip --image_feature_size 512 --model GatedAverageBERT --name gated_avg_clip
 ```
 * ``--dataset`` : ``mami_dataset`` for binary classification, ``mami_multi_dataset`` for multi-label classification
-* ``--model``: Can set to ConcatBERT, AverageBERT, GatedAverageBERT
+* ``--model``: Can set to ``ConcatBERT, AverageBERT, GatedAverageBERT``
 * For using clip embeddings, set ``--image_mode`` to ``clip`` and  ``--image_feature_size`` to  ``512``
 * ``--name``: Name of the model you want to save
 
@@ -34,7 +34,7 @@ python main.py --dataset mami_dataset --model_mode test --image_mode clip --imag
 ```
 * Set ``--model_model`` to ``test`` for testing the model
 * ``--dataset`` : ``mami_dataset`` for binary classification, ``mami_multi_dataset`` for multi-label classification
-* ``--model``: Can set to ConcatBERT, AverageBERT, GatedAverageBERT
+* ``--model``: Can set to ``ConcatBERT, AverageBERT, GatedAverageBERT``
 * For using clip embeddings, set ``--image_mode`` to ``clip`` and  ``--image_feature_size`` to  ``512``
 * ``best_model_cpt``: Name of the model you want to load
 
