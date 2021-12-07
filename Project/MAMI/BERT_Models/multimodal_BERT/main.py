@@ -8,7 +8,7 @@ from src.metrics import Accuracy, Precision, Recall, F1Score
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]="2,3c"
-
+CUDA_LAUNCH_BLOCKING=1
 # torch.multiprocessing.set_start_method('spawn')
 
 
@@ -135,13 +135,6 @@ else:
 
 print('Finish loading the data....')
 
-# print(train_loader)
-
-# for i, data in enumerate(train_loader):
-#     print(i, data)
-#     if(i==5):
-#         break
-# exit()
 ####################################################################
 #
 # Hyperparameters

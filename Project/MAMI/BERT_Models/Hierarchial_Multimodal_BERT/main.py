@@ -142,13 +142,7 @@ else:
 
 print('Finish loading the data....')
 
-# print(train_loader)
 
-# for i, data in enumerate(train_loader):
-#     print(i, data)
-#     if(i==5):
-#         break
-# exit()
 ####################################################################
 #
 # Hyperparameters

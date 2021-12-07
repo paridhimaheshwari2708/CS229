@@ -30,7 +30,6 @@ from sklearn.metrics import classification_report
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.metrics import accuracy_score, f1_score
-from src.eval_metrics import *
 
 import os
 # os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
@@ -141,23 +140,11 @@ def train(hyp_params, train_loader, model, bert, tokenizer, feature_extractor,ff
 
         if(hyp_params.image_mode == 'clip'):
             feature_images = feature_extractor.encode_image(images).float()
-            # print("FEATURE IMAGES", feature_images, feature_images.shape)
-            # feature_images = fflayer(feature_images)
-            # print("AFTER FF LAYER",feature_images, feature_images.shape )
-            # print(feature_images.shape)
-            # exit()
 
-        # last_hidden, pooled_output = bert(
-        #     input_ids=input_ids,
-        #     attention_mask=attention_mask
-        # )
         bert_outputs = bert(
             input_ids=input_ids,
             attention_mask=attention_mask
         )
-
-        # print("HERE - pooled", bert_outputs.pooler_output, bert_outputs.pooler_output.shape)
-        # print("LAST HIDDEN STATE - ", bert_outputs.last_hidden_state)
 
         outputs = model(
             last_hidden=bert_outputs.last_hidden_state,
@@ -172,20 +159,14 @@ def train(hyp_params, train_loader, model, bert, tokenizer, feature_extractor,ff
             preds = outputs
             
         preds_round = (preds > 0.5).float()
-        # print("OUTPUTS .. ",outputs, outputs.shape)
-        # print("TARGETS .. ",targets, targets.shape)
-
 
         loss = criterion(outputs, targets)
         losses.append(loss.item())
         loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), hyp_params.clip)
         optimizer.step()
-        #optimizer.zero_grad()
         
         total_loss += loss.item() * hyp_params.batch_size
-        # results.append(preds)
-        # truths.append(targets)
         results.append(sigmoid(preds).detach().cpu().numpy())
         truths.append(targets.detach().cpu().numpy())
 
@@ -202,8 +183,6 @@ def train(hyp_params, train_loader, model, bert, tokenizer, feature_extractor,ff
         
             
     avg_loss = total_loss / hyp_params.n_train
-    # results = torch.cat(results)
-    # truths = torch.cat(truths)
     results = np.concatenate(results, axis=0)
     truths = np.concatenate(truths, axis=0)
 
@@ -211,7 +190,6 @@ def train(hyp_params, train_loader, model, bert, tokenizer, feature_extractor,ff
 
 def evaluate(hyp_params, data_loader, model, bert, tokenizer, feature_extractor,fflayer, criterion, test=False, details = False):
     model.eval()
-    # loader = test_loader if test else valid_loader
     loader = data_loader
     total_loss = 0.0
 
@@ -264,12 +242,6 @@ def evaluate(hyp_params, data_loader, model, bert, tokenizer, feature_extractor,
                 attention_mask=attention_mask
             )
 
-            # outputs = model(
-            #     last_hidden=last_hidden,
-            #     pooled_output=pooled_output,
-            #     feature_images=feature_images
-            # )
-
             outputs = model(
             last_hidden=bert_outputs.last_hidden_state,
             pooled_output=bert_outputs.pooler_output,
@@ -286,18 +258,11 @@ def evaluate(hyp_params, data_loader, model, bert, tokenizer, feature_extractor,
             total_loss += criterion(outputs, targets).item() * hyp_params.batch_size
             correct_predictions += torch.sum(preds == targets)
 
-            # Collect the results into dictionary
-            # results.append(preds)
-            # truths.append(targets)
-
             results.append(sigmoid(preds).detach().cpu().numpy())
             truths.append(targets.detach().cpu().numpy())
             img_names_list.extend(img_name)
 
     avg_loss = total_loss / (hyp_params.n_test if test else hyp_params.n_valid)
-
-    # results = torch.cat(results)
-    # truths = torch.cat(truths)
 
     results = np.concatenate(results, axis=0)
     truths = np.concatenate(truths, axis=0)
@@ -328,15 +293,10 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
         start = time.time()
         train_results, train_truths, train_loss = train(hyp_params, train_loader, model, bert, tokenizer, feature_extractor,fflayer, optimizer, criterion, epoch)
         results, truths, val_loss = evaluate(hyp_params, valid_loader, model, bert, tokenizer, feature_extractor,fflayer, criterion, test=False)
-        #if test_loader is not None:
-        #    results, truths, val_loss = evaluate(model, feature_extractor, criterion, test=True)
 
         end = time.time()
         duration = end-start
         scheduler.step(val_loss)
-
-        # train_acc, train_f1 = metrics(train_results, train_truths) 
-        # val_acc, val_f1 = metrics(results, truths)
 
         train_acc, train_f1 = METRICS['Accuracy'](train_results, train_truths), METRICS['F1Score'](train_results, train_truths)
         val_acc, val_f1 = METRICS['Accuracy'](results, truths), METRICS['F1Score'](results, truths)
@@ -378,8 +338,6 @@ def test_model(hyp_params, test_loader):
     tokenizer = BertTokenizer.from_pretrained(hyp_params.bert_model)
     criterion = getattr(nn, hyp_params.criterion)()
 
-    # feature_extractor = torch.hub.load('pytorch/vision:v0.6.0', hyp_params.cnn_model, pretrained=True)
-
     if(hyp_params.image_mode == 'general'):
         feature_extractor = torch.hub.load('pytorch/vision:v0.6.0', hyp_params.cnn_model, pretrained=True)
 
@@ -388,7 +346,7 @@ def test_model(hyp_params, test_loader):
 
     model = load_model(hyp_params, name=hyp_params.best_model_cpt)
     results, truths, test_loss, img_names = evaluate(hyp_params, test_loader, model, bert, tokenizer, feature_extractor,fflayer =None, criterion = criterion, test=True, details=True)
-    # test_acc, test_f1 = metrics(results, truths)
+
     metric_results = {"Loss": test_loss}
     for metric, metric_fn in METRICS.items():
         metric_results[metric] = metric_fn(results, truths)
@@ -409,28 +367,19 @@ def test_model(hyp_params, test_loader):
         print(name, pred.tolist(), gt.tolist())
         pred_list = [int(x) for x in pred.tolist()]
         gt_list = [int(x) for x in gt.tolist()]
-        # print(type(pred))
-        # print(pred.tolist())
         write_data_row = [name, pred_list, gt_list]
         write_data.append(write_data_row)
     
+    ## Writing predictions to a pickle file
     with open('./gated_avg_clip_result.pkl','wb') as f:
         pickle.dump(write_data, f)
 
-    # import pdb
-    # pdb.set_trace()
-
     header = ['image_name', 'predictions', 'ground_truth']
-    
+
+    ## Writing to a CSV file    
     with open('gated_avg_clip_result.csv', 'w', encoding='UTF8', newline='') as f:
         writer = csv.writer(f)
-
-        # write the header
         writer.writerow(header)
-
-        # write multiple rows
         writer.writerows(write_data)
-    # test_acc, test_f1 = METRICS['Accuracy'](results, truths), METRICS['F1Score'](results, truths)
 
-    # print("\n\nTest Acc {:5.4f} | Test f1-score {:5.4f}".format(test_acc, test_f1))
     return

@@ -27,7 +27,6 @@ from sklearn.metrics import classification_report
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.metrics import accuracy_score, f1_score
-from src.eval_metrics import *
 
 import os
 
@@ -185,12 +184,9 @@ def train(hyp_params, train_loader, model, bert, tokenizer, feature_extractor,ff
 		optimizer.step()
 		#optimizer.zero_grad()
 
-		# import pdb
-		# pdb.set_trace()
 		
 		total_loss += loss.item() * hyp_params.batch_size
-		# results.append(preds)
-		# truths.append(targets)
+
 		preds_a_round = sigmoid(preds_a).detach().cpu().numpy()
 		preds_b_round = sigmoid(preds_b).detach().cpu().numpy()
 		targets_a = targets[:,0].unsqueeze(1).detach().cpu().numpy()
@@ -203,9 +199,6 @@ def train(hyp_params, train_loader, model, bert, tokenizer, feature_extractor,ff
 		proc_loss += loss * hyp_params.batch_size
 		proc_size += hyp_params.batch_size
 
-
-		# import pdb
-		# pdb.set_trace()
 		
 		if i_batch % hyp_params.log_interval == 0 and i_batch > 0:
 			train_acc_a, train_f1_a = METRICS['Accuracy'](preds_a_round, targets_a), METRICS['F1Score'](preds_a_round, targets_a)
@@ -220,8 +213,6 @@ def train(hyp_params, train_loader, model, bert, tokenizer, feature_extractor,ff
 		
 		
 	avg_loss = total_loss / hyp_params.n_train
-	# results = torch.cat(results)
-	# truths = torch.cat(truths)
 	results_a = np.concatenate(results_a, axis=0)
 	results_b= np.concatenate(results_b, axis=0)
 	truths_a = np.concatenate(truths_a, axis=0)
@@ -231,7 +222,6 @@ def train(hyp_params, train_loader, model, bert, tokenizer, feature_extractor,ff
 
 def evaluate(hyp_params, data_loader, model, bert, tokenizer, feature_extractor,fflayer, criterion1,criterion2, test=False):
 	model.eval()
-	# loader = test_loader if test else valid_loader
 	loader = data_loader
 	total_loss = 0.0
 
@@ -283,11 +273,6 @@ def evaluate(hyp_params, data_loader, model, bert, tokenizer, feature_extractor,
 				attention_mask=attention_mask
 			)
 
-			# outputs = model(
-			#     last_hidden=last_hidden,
-			#     pooled_output=pooled_output,
-			#     feature_images=feature_images
-			# )
 
 			preds1, preds2  = model(
 			last_hidden=bert_outputs.last_hidden_state,
@@ -357,8 +342,6 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
 		duration = end-start
 		scheduler.step(val_loss)
 
-		# train_acc, train_f1 = metrics(train_results, train_truths) 
-		# val_acc, val_f1 = metrics(results, truths)
 
 		train_acc_a, train_f1_a = METRICS['Accuracy'](train_results_a, train_truths_a), METRICS['F1Score'](train_results_a, train_truths_a)
 		val_acc_a, val_f1_a = METRICS['Accuracy'](results_a, truths_a), METRICS['F1Score'](results_a, truths_a)
@@ -366,8 +349,6 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
 		train_acc_b, train_f1_b = METRICS['Accuracy'](train_results_b, train_truths_b), METRICS['F1Score'](train_results_b, train_truths_b)
 		val_acc_b, val_f1_b = METRICS['Accuracy'](results_b, truths_b), METRICS['F1Score'](results_b, truths_b)
 		
-		# train_acc, train_f1 = METRICS['Accuracy'](train_results, train_truths), METRICS['F1Score'](train_results, train_truths)
-		# val_acc, val_f1 = METRICS['Accuracy'](results, truths), METRICS['F1Score'](results, truths)
 
 		print("-"*50)
 		print('Epoch {:2d} | Time {:5.4f} sec | Train Loss {:5.4f} | Valid Loss {:5.4f} | Valid Acc Task B {:5.4f} | Valid f1-score Task B {:5.4f}'.format(epoch, duration, train_loss, val_loss, val_acc_b, val_f1_b))

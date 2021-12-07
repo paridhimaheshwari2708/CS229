@@ -71,34 +71,11 @@ class MAMIDataset(Dataset):
         img_name = curr['file_name']
         image_path = os.path.join(IMAGE_DIR, img_name)
 
-        # image = Image.open(image_path).convert('RGB')
-
         text = curr['Text Transcription']
-        # text_encoded = self.tokenizer.encode_plus(
-        #     text,
-        #     truncation=True,
-        #     padding=True,
-        #     add_special_tokens=True,
-        #     max_length=self.max_len,
-        #     return_token_type_ids=False,
-        #     # pad_to_max_length=True,
-        #     return_attention_mask=True,
-        #     return_tensors='pt',
-        # )
-        # text_encoded=None
-        
+
         # BCEWithLogits Loss expects target in float
         labels = torch.tensor([curr[x] for x in self.label_columns], dtype=torch.float)
-        
-
-        # if self.transform:
-        #     image = self.transform(image)
-
         image = self.load_image(image_path)
-        # sample = {'image': image,
-        #           'input_ids': text_encoded['input_ids'].flatten(),
-        #           'attention_mask': text_encoded['attention_mask'].flatten(),
-        #           "label": labels}
         sample = {'img_name':img_name,
                     'image': image,
                   'input_ids': text,
