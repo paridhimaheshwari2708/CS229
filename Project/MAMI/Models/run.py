@@ -1,17 +1,5 @@
 '''
-CUDA_VISIBLE_DEVICES=0 python run.py --save TaskA_VQA --mode TaskA --model VQA
-CUDA_VISIBLE_DEVICES=1 python run.py --save TaskA_MUTAN --mode TaskA --model MUTAN
-CUDA_VISIBLE_DEVICES=3 python run.py --save TaskA_SAN --mode TaskA --model SAN
-CUDA_VISIBLE_DEVICES=3 python run.py --save TaskA_Text --mode TaskA --model Text
-CUDA_VISIBLE_DEVICES=3 python run.py --save TaskA_Image --mode TaskA --model Image
-CUDA_VISIBLE_DEVICES=3 python run.py --save TaskA_ImageText --mode TaskA --model ImageText
-
-CUDA_VISIBLE_DEVICES=0 python run.py --save TaskB_VQA --mode TaskB --model VQA
-CUDA_VISIBLE_DEVICES=1 python run.py --save TaskB_MUTAN --mode TaskB --model MUTAN
-CUDA_VISIBLE_DEVICES=2 python run.py --save TaskB_SAN --mode TaskB --model SAN
-CUDA_VISIBLE_DEVICES=3 python run.py --save TaskB_Text --mode TaskB --model Text
-CUDA_VISIBLE_DEVICES=3 python run.py --save TaskB_Image --mode TaskB --model Image
-CUDA_VISIBLE_DEVICES=0 python run.py --save TaskB_ImageText --mode TaskB --model ImageText
+CUDA_VISIBLE_DEVICES=1 python run.py --save TaskB_MUTAN --mode TaskB --model MUTAN  --image_mode general --text_mode glove
 '''
 
 import os

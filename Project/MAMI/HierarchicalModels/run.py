@@ -1,11 +1,5 @@
 '''
-CUDA_VISIBLE_DEVICES=0 python run.py --save ImageText_all --model ImageText --image_mode general --text_mode glove --hierarchical all
-CUDA_VISIBLE_DEVICES=0 python run.py --save VQA_all --model VQA --image_mode general --text_mode glove --hierarchical all
 CUDA_VISIBLE_DEVICES=0 python run.py --save MUTAN_all --model MUTAN --image_mode general --text_mode glove --hierarchical all
-
-CUDA_VISIBLE_DEVICES=0 python run.py --save ImageText_cwk_all --model ImageText --image_mode clip --text_mode urban --hierarchical all
-CUDA_VISIBLE_DEVICES=0 python run.py --save VQA_cwk_all --model VQA --image_mode clip --text_mode urban --hierarchical all
-CUDA_VISIBLE_DEVICES=0 python run.py --save MUTAN_cwk_all --model MUTAN --image_mode clip --text_mode urban --hierarchical all
 '''
 
 import os
