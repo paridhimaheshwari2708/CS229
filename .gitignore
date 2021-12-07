@@ -13,7 +13,10 @@ Project/MAMI/Models/logs
 Project/MAMI/Models/runs
 Project/MAMI/HierarchicalModels/logs
 Project/MAMI/HierarchicalModels/runs
+Project/MAMI/Models_BERT/logs
+Project/MAMI/Models_BERT/runs
+Project/MAMI/HierarchicalModels_BERT/logs
+Project/MAMI/HierarchicalModels_BERT/runs
 
 Project/Data
-Project/ProjectProposal.pdf
 Project/RitwickCourseProject
