@@ -1,7 +1,5 @@
 # Detecting Misogynistic Content in Multimodal Memes
 
-## Setup
-
 ## Data Preprocessing
 
 ```
