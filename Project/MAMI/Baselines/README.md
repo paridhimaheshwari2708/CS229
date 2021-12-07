@@ -5,6 +5,9 @@ Experiments on binary and multi-label classification using baseline models like 
 Image Features:
 * ``preprocess_image_features.py`` - Extract the image features and store them into a pickle file
 
+Text Features:
+* ``./task_a/binary_classification_text.ipynb`` has code to extract TF-IDF features for text and save them in pickle file (used to multi-modal baseline experiments)
+
 task_a:
 - Binary Classification into misogynistic and not-misogynistic memes
 * ``./task_a/binary_classification_text.ipynb`` - Unimodal binary classification of memes using textual BOW features
