@@ -40,10 +40,9 @@ For BERT-based models, refer to the following [README](Models_BERT/README.md).
 For unimodal networks, CNN+LSTM, VQA and MUTAN,
 ```
 cd HierarchicalModels/
-python run.py --save {save_folder_name} --mode {mode} --model {model} --image_mode {image_mode} --text_mode {text_mode} --hierarchical {hierarchical}
+python run.py --save {save_folder_name} --model {model} --image_mode {image_mode} --text_mode {text_mode} --hierarchical {hierarchical}
 ```
 where options for various arguments are
-- `{mode}` can be either `TaskA` or `TaskB`.
 - `{model}` can be `[VQA, MUTAN, ImageText]`
 - `{image_mode}` is `general` for VGG-16 embeddings and `clip` for CLIP pretrained feature extractor.
 - `{text_mode}` is `glove` for GloVe word embeddings or`urban` for Urban Dictionary embeddings.
