@@ -11,11 +11,11 @@
 
 Data
 
-Code/Models/logs
-Code/Models/runs
-Code/HierarchicalModels/logs
-Code/HierarchicalModels/runs
-Code/Models_BERT/logs
-Code/Models_BERT/runs
-Code/HierarchicalModels_BERT/logs
-Code/HierarchicalModels_BERT/runs
+Models/logs
+Models/runs
+HierarchicalModels/logs
+HierarchicalModels/runs
+Models_BERT/logs
+Models_BERT/runs
+HierarchicalModels_BERT/logs
+HierarchicalModels_BERT/runs
